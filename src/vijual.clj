@@ -1176,7 +1176,7 @@
         (.fillRect graphics (+ x line-wid) (+ y line-wid) (- width (* line-wid 2)) (- height (* line-wid 2)))
         (.setColor graphics (Color. 0 0 0))
         (doseq [[s n] (map vector (seq text) (iterate inc 0))]
-          (.drawString graphics s (floor (+ 2 x)) (floor (+ y 8 (* n 10)))))))
+          (.drawString graphics s (int (floor (+ 2 x))) (int (floor (+ y 18 (* n 10))))))))
     (doseq [{:keys [type x y width height dir]} shapes]
       (when (= type :arrow)
         (.setColor graphics (Color. 255 255 255))
