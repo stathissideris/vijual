@@ -13,14 +13,14 @@
 (defn half [x]
   (/ x 2))
 
-(defn fill 
+(defn fill
   "Returns a string with the character repeated"
   ([c n]
      (apply str (take n (repeat c))))
   ([c]
      (fill c 1)))
 
-(defn integer-shapes 
+(defn integer-shapes
   "Takes a sequence of shapes and 'rounds off' all the dimensions so that it can be displayed in ASCII"
   [shapes]
   (map (fn [{:keys [x y width height type] :as item}]
@@ -48,7 +48,7 @@
                 (+ x width))
               shapes)))
 
-(defn draw-shapes 
+(defn draw-shapes
   "Renders a list of shapes into ASCII. The two current shape types are ':rect', which represent nodes and lines between nodes (simply rectangles of minimal width). The arrow heads are represented as type ':arrow'"
   [{:keys [node-padding]} shapes]
   (doseq [ypos (range (shapes-height shapes))]
@@ -63,7 +63,7 @@
           (do (when (<= @xcur x)
                 (print (fill \space (- x @xcur))))
               (let [s (if (= :on (rect-relation ypos shape))
-                        (str (condp = type 
+                        (str (condp = type
                                :arrow (condp = dir
                                         :right \>
                                         :left \<
@@ -104,7 +104,7 @@
                          more)))))))
     (prn)))
 
-(defn out 
+(defn out
   "like 'print' but without inserted spaces and fully flushed"
   [& more]
   (print (apply str more))
@@ -114,7 +114,7 @@
 (defn numbered [lst]
   (map vector (iterate inc 0) lst))
 
-(defn label-text 
+(defn label-text
   "Returns a text string representing the label for the item. It handles the special case of keywords, so that :oak-tree ==> 'oak tree'"
   [text]
      (if (keyword? text)
@@ -180,8 +180,8 @@
         (cond (<= (+ x width) ax) (if besty
                                    (max besty cury)
                                    cury)
-              (< x ax) (recur d 
-                               ay 
+              (< x ax) (recur d
+                               ay
                                (if besty
                                  (max besty ay cury)
                                  (if cury
@@ -200,7 +200,7 @@
                              (+ (min ascii-wrap-threshold (count text)) 4))
                  :height-fn (fn [text]
                               (+ (count (wrap text ascii-wrap-threshold)) 2))
-                 :wrap-fn (fn 
+                 :wrap-fn (fn
                             ([text]
                                (vec (map #(apply str " " %) (wrap text ascii-wrap-threshold))))
                             ([text width height]
@@ -210,9 +210,9 @@
                  :line-wid 1
                  :line-padding 1})
 
-;;Functions specific to tree drawing 
+;;Functions specific to tree drawing
 
-(defn tree-to-shapes 
+(defn tree-to-shapes
   "Converts a full layed-out tree into a bunch of shapes to be sent to backend rendering code."
   [{:keys [wrap-fn line-wid]} tree]
   (mapcat (fn [{:keys [text x y width height line-left line-right line-ypos leaf parent-line-y]}]
@@ -224,7 +224,7 @@
                        {:type :rect :x (+ x (half width) (- (half line-wid))) :y (dec (+ y height)) :width line-wid :height (+ (- line-ypos y height) 2)}])))
           tree))
 
-(defn make-rows 
+(defn make-rows
   "Takes a tree and converts it into rows. This is needed since items in the same row and their widths will affect the spacing and layout of items."
   [tree]
   (when (seq tree)
@@ -244,7 +244,7 @@
              row))
        rows))
 
-(defn row-pos 
+(defn row-pos
   "Calculates preliminary x positions for nodes in a tree. This will be refined later by the calculations from the 'space' functions."
   [{:keys [width-fn node-padding row-padding height-fn]} row y]
   (let [x (atom 0)]
@@ -309,14 +309,14 @@
        rows
        (concat (rest rows) [[]])))
 
-(defn level-lines 
+(defn level-lines
   "This function is used to stagger horizontal lines vertically in an optimal fashion, so that nodes can connect to their children in a tree with the least amount of inbetween space."
   [{:keys [line-wid line-padding]} lined]
   (map (fn [row]
          (let [group-right (atom 0)
                line-y (atom 0)]
            (map (fn [{:keys [leaf line-left line-right x width] :as item}]
-                  (cond leaf 
+                  (cond leaf
                         item
                         (and @group-right (> (+ @group-right line-wid) line-left))
                         (swap! line-y
@@ -334,8 +334,8 @@
   "Updates children with the level of the horizontal line of their parents."
   (map (fn [cur par]
          (map (fn [item]
-                (assoc item 
-                  :parent-line-y 
+                (assoc item
+                  :parent-line-y
                   (when-let [k (first (filter #(= (% :id) (item :parent)) par))]
                     (k :line-ypos))))
               cur))
@@ -361,7 +361,7 @@
         (recur dim (scan-add scan line-left (+ cury line-wid line-padding) line-width) (cons (assoc item :line-ypos cury) acc) r)))
     [(reverse acc) scan]))
 
-(defn pack-tree 
+(defn pack-tree
   "gets rid of extra empty space in a tree by moving up nodes and horizontal lines as much as possible."
   [{:keys [line-padding line-wid] :as dim} rows]
   (letfn [[f [scan rows]
@@ -372,7 +372,7 @@
                (lazy-seq (cons lines-placed (f scan more)))))]]
     (f [[0 0]] rows)))
 
-(defn idtree 
+(defn idtree
   "Assigns an id# to each node in a tree so that it can be flattened later on."
   [tree]
   (let [n (atom 0)]
@@ -383,10 +383,10 @@
                   tree)]]
       (f tree))))
 
-(defn tree-row-wid 
+(defn tree-row-wid
   "Figures out the width of a row in a tree."
   [{:keys [width-fn node-padding]} row]
-  (+ (reduce + 
+  (+ (reduce +
              (map (fn [{text :text}]
                     (width-fn text))
                   row))
@@ -443,13 +443,13 @@
                                   first-leg (first legs)
                                   rev-legs (reverse legs)
                                   last-leg (first rev-legs)]
-                              (concat [{:type (if (= arrow :start) 
-                                                :arrow 
+                              (concat [{:type (if (= arrow :start)
+                                                :arrow
                                                 :cap)
-                                        :x (first-leg :xpos) 
-                                        :y (first-leg :ypos) 
-                                        :width line-wid 
-                                        :height line-wid 
+                                        :x (first-leg :xpos)
+                                        :y (first-leg :ypos)
+                                        :width line-wid
+                                        :height line-wid
                                         :on-top true
                                         :dir (condp = (first-leg :dir)
                                                :right :left
@@ -457,12 +457,12 @@
                                                :up :down
                                                :down :up)}
                                        {:type (if (= arrow :end)
-                                                :arrow 
+                                                :arrow
                                                 :cap)
-                                        :x (last-leg :xpos) 
-                                        :y (last-leg :ypos) 
-                                        :width line-wid 
-                                        :height line-wid 
+                                        :x (last-leg :xpos)
+                                        :y (last-leg :ypos)
+                                        :width line-wid
+                                        :height line-wid
                                         :on-top true
                                         :dir ((first (next rev-legs)) :dir)}]
                                       (-> (vec shapes)
@@ -473,7 +473,7 @@
 
 (defn tension [edges pos]
   "Calculates the manhattan distance between all edges in a graph."
-  (apply + 
+  (apply +
          (map (fn [[f t]]
                 (let [{fx :x fy :y} (pos f)
                       {tx :x ty :y} (pos t)]
@@ -488,15 +488,15 @@
 (defn shuffle-nodes
   "Randomly swaps two nodes of the graph"
   [pos nodes]
-  (let [a (rand-elt nodes)
-        b (rand-elt nodes)
+  (let [a (rand-nth nodes)
+        b (rand-nth nodes)
         an (pos a)
         bn (pos b)]
-    (merge pos 
+    (merge pos
            {a (assoc an :x (bn :x) :y (bn :y))
             b (assoc bn :x (an :x) :y (an :y))})))
 
-(defn anneal 
+(defn anneal
   "A naive annealing algorithm for initial layout of nodes in graphs. The current code is crude and very prone to getting stuck in local maxima. Best replaced with a genetic algorithm in the future."
   [edges nodemap]
   (let [nodes (distinct (concat (apply concat edges) (keys nodemap)))
@@ -526,7 +526,7 @@
 (defn tension-directed
   "Calculates the total length of all edges, based on manhattan distance. Directional arrows pointing upwards are penalized, so that the graph will have mainly downward arrows."
   [edges pos]
-  (apply + 
+  (apply +
          (map (fn [[f t]]
                 (let [{fx :x fy :y} (pos f)
                       {tx :x ty :y} (pos t)]
@@ -539,7 +539,7 @@
 (defn edge-map
   "Turns a list of edges into a map, keyed on the source of the edge."
   [edges]
-  (into {} 
+  (into {}
         (map (fn [[a more]]
                [a (map second more)])
              (group-by first edges))))
@@ -555,7 +555,7 @@
                  (inc (apply max (map #(depth (first %) (conj visited node)) e)))
                  0))]]
       (map second
-           (sort-by first 
+           (sort-by first
                     (map (fn [node]
                            [(depth node #{}) node])
                          nodes))))))
@@ -606,8 +606,8 @@
                                      (let [{bx :x by :y} (nodes b)]
                                        (or (< x bx) (and (= x bx) (< y by)))))
                                    e)]
-                 [k 
-                  (assoc item 
+                 [k
+                  (assoc item
                     :links (map (fn [[a b]]
                                      (let [{by :y bx :x} (nodes b)]
                                        {:dest b
@@ -717,7 +717,7 @@
                  (let [xpos (+ (col-tots x) (vline-counts (inc x)) (half (- (col-widths x) (width-fn text))))
                        ypos (+ (row-tots y) (hline-counts (inc y)) (half (- (row-heights y) (height-fn text))))]
                    [key
-                    (assoc item 
+                    (assoc item
                       :xpos xpos
                       :ypos ypos
                       :links (vec (map (fn [{:keys [dest legs] :as link} link-index]
@@ -731,7 +731,7 @@
                                                                                              [1 0])
                                                                                xx (half ([x1 x2] xsrc))
                                                                                yy (half ([y1 y2] ysrc))]
-                                                                           (assoc pt1 
+                                                                           (assoc pt1
                                                                              :xpos (if (ratio? xx)
                                                                                      (if (< index 2)
                                                                                        xpos
@@ -755,8 +755,8 @@
   [nodes]
   (into {}
         (map (fn [[key {:keys [links] :as node}]]
-               [key 
-                (assoc node 
+               [key
+                (assoc node
                   :links (vec (map (fn [{:keys [legs] :as link}]
                                      (assoc link
                                        :legs (vec (concat (map (fn [{xpos1 :xpos ypos1 :ypos dir1 :dir :as leg1} {xpos2 :xpos ypos2 :ypos :as leg2}]
@@ -769,7 +769,7 @@
                                                                                      :up))]
 ;                                                                   (when (and (not= dir1 nudir) (not (and (= xpos1 xpos2) (= ypos1 ypos2))))
 ;                                                                     (println "bad direction!"))
-                                                                   (assoc leg1 
+                                                                   (assoc leg1
                                                                      :dir (if (and (not= dir1 nudir) (not (and (= xpos1 xpos2) (= ypos1 ypos2))))
                                                                             nudir
                                                                             dir1))))
@@ -801,8 +801,8 @@
                                     (let [{:keys [ypos xpos width height]} (nodes key)
                                           nuy (scan-lowest-y scan xpos width)
                                           {:keys [links] :as node} (nodes key)
-                                          nodes (assoc nodes 
-                                                  key (assoc node 
+                                          nodes (assoc nodes
+                                                  key (assoc node
                                                         :ypos nuy))
                                           links (vec (map (fn [{[l1 {dir :dir :as l2} & more] :legs :as link}]
                                                             (assoc link :legs (vec (concat [(assoc l1 :ypos nuy)
@@ -842,12 +842,12 @@
                                                                  (recur more (conj acc link) scan))
                                                                [(assoc nodes key (assoc (nodes key) :links acc)) scan]))
                                           nuheight (max height (+ (- (scan-lowest-y scan (+ xpos width) line-padding) nuy) line-padding) (+ (- (scan-lowest-y scan xpos 0) nuy) line-padding))
-                                          nodes (update-in nodes 
-                                                           [key :links] 
+                                          nodes (update-in nodes
+                                                           [key :links]
                                                            (fn [links]
                                                              (vec (map (fn [{[{:keys [dir ypos]} & {}] :legs :as link}]
                                                                          (assoc-in link
-                                                                                   [:legs 0 :ypos] 
+                                                                                   [:legs 0 :ypos]
                                                                                    (cond (horizontal dir) ypos
                                                                                          (= dir :down) (+ nuy nuheight)
                                                                                          true (- nuy line-wid))))
@@ -856,7 +856,7 @@
                                                        nodes nodes]
                                                   (if-let [[[other-key link-index] & more] (seq links)]
                                                     (recur more
-                                                           (update-in nodes 
+                                                           (update-in nodes
                                                                       [other-key :links link-index :legs]
                                                                       (fn [legs]
                                                                         (let [[{ypos :ypos :as leg} {dir :dir}] (reverse legs)]
@@ -897,7 +897,7 @@
   [nodes]
   (into {}
         (map (fn [[id {:keys [x y xpos ypos width height links] :as node}]]
-               [id (assoc node 
+               [id (assoc node
                      :xpos ypos
                      :ypos xpos
                      :width height
@@ -906,7 +906,7 @@
                      :y x
                      :links (vec (map (fn [{legs :legs :as link}]
                                         (assoc link :legs (vec (map (fn [{:keys [x y xpos ypos dir] :as leg}]
-                                                                      (assoc leg 
+                                                                      (assoc leg
                                                                         :xpos ypos
                                                                         :ypos xpos
                                                                         :x y
@@ -946,19 +946,19 @@
 (defn line-unblocked
   "Checks a linemap (created by hline-map, probably) to see if a new line will cause a collision."
   [linemap y x1 x2]
-  (> 2 
+  (> 2
      (count (filter (fn [[xx1 xx2]]
                       (not (or (<= xx2 x1) (>= xx1 x2))))
                     (linemap (int (floor y)))))))
 
-(defn remove-zigzags 
+(defn remove-zigzags
   "Nodes that are adjacent are connected by a 'zigzag' line for most of the algorithms, so that they have some 'give'. This function removes any zigzags for cases where nodes are close enough to be connected by just a straight line."
   [{:keys [line-padding line-wid]} nodes]
   (let [linemap (hline-map nodes)]
     (into {}
           (map (fn [[key {:keys [height xpos ypos links] :as node}]]
                  [key (assoc node :links (vec (map (fn [{{{xpos1 :xpos ypos1 :ypos dir :dir :as leg} 0 {ypos2 :ypos} 2 :as legs} :legs dest :dest :as link}]
-                                                     (assoc link 
+                                                     (assoc link
                                                        :legs
                                                        (if (and (= (count legs) 4) (= dir :right))
                                                          (let [{xpos-other :xpos ypos-other :ypos height-other :height} (nodes dest)
@@ -1019,14 +1019,14 @@
 
 ;;Functions specific to binary trees
 
-(defn line-info-btree 
+(defn line-info-btree
   "Takes 2 rows of nodes in the binary tree and figures out the arrangement of lines between the two rows."
   [top bottom]
   (letfn [[f [top tx bottom bx in-line x]
            (if (and (seq top) (or (empty? bottom) (< (+ tx (first (first top))) (+ bx (first (first bottom))))))
              (let [[ind wid val left right] (first top)]
                   (concat (if left
-                            [[:lbottom] [:line (- (+ tx ind) bx 2)] [:ltop] [:space wid] [:nop]] 
+                            [[:lbottom] [:line (- (+ tx ind) bx 2)] [:ltop] [:space wid] [:nop]]
                             [[:space (- (+ tx ind wid) x)] [:nop]])
                           (f (rest top) (+ tx ind wid) bottom bx right (+ tx ind wid))))
              (when (seq bottom)
@@ -1043,7 +1043,7 @@
                   (+ a b))
                 row)))
 
-(defn layout-btree 
+(defn layout-btree
   "Takes a binary tree and converts it into rows, with nodes at the same level of the tree in the same row. The data for each item in each row is a vector, formatted as [indentation width text left-children? right-children?"
   [btree]
   (if btree
@@ -1068,7 +1068,7 @@
                    (take m (concat lyes (repeat nil)))))))
     []))
 
-(defn sp 
+(defn sp
   "Returns 1->n spaces in a string"
   ([n]
      (out (fill \space n)))
@@ -1126,7 +1126,7 @@
                             (* (+ (min image-wrap-threshold (count text)) 4) 7))
                 :height-fn (fn [text]
                              (* (+ (count (wrap text image-wrap-threshold)) 2) 9))
-                :wrap-fn (fn 
+                :wrap-fn (fn
                            ([text]
                               (vec (map #(apply str " " %) (wrap text image-wrap-threshold))))
                            ([text width height]
@@ -1136,8 +1136,8 @@
                 :line-wid 3
                 :line-padding 10})
 
-(defn save-image 
-  "This is just a convenience function for the examples- Saves a bitmap to a file."  
+(defn save-image
+  "This is just a convenience function for the examples- Saves a bitmap to a file."
   [img name]
   (let [file (new File (str name ".png"))]
     (ImageIO/write (cast java.awt.image.BufferedImage img) "png" file)))
@@ -1178,11 +1178,11 @@
 
 ;;Exported functions for interfacing with this library
 
-(defn draw-tree 
+(defn draw-tree
   "Draws a tree to the console."
   [tree]
   (draw-shapes ascii-dim (integer-shapes (tree-to-shapes ascii-dim (layout-tree ascii-dim (idtree tree))))))
-  
+
 (defn draw-graph
   "Draws an undirected graph to the console. Requires a list of pairs representing the edges of the graph. Additionally, a separate map can be included containing node information mapped via the node ids in the edge list."
   ([edges nodes]
