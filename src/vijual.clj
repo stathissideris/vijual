@@ -500,13 +500,13 @@
 (defn shuffle-nodes
   "Randomly swaps two nodes of the graph"
   [pos nodes]
-  (let [a (rand-nth nodes)
-        b (rand-nth nodes)
+  (let [a  (rand-nth nodes)
+        b  (rand-nth nodes)
         an (pos a)
         bn (pos b)]
-    (merge pos
-           {a (assoc an :x (bn :x) :y (bn :y))
-            b (assoc bn :x (an :x) :y (an :y))})))
+    (assoc pos
+           a (assoc an :x (bn :x) :y (bn :y))
+           b (assoc bn :x (an :x) :y (an :y)))))
 
 (defn anneal
   "A naive annealing algorithm for initial layout of nodes in graphs. The current code is crude and very prone to getting stuck in local maxima. Best replaced with a genetic algorithm in the future."
@@ -791,6 +791,15 @@
                                    links)))])
              nodes)))
 
+(defn- update-links [links nuy nuheight line-wid]
+  (mapv (fn [{[{:keys [dir ypos]}] :legs :as link}]
+          (assoc-in link
+                    [:legs 0 :ypos]
+                    (cond (horizontal dir) ypos
+                          (= dir :down) (+ nuy nuheight)
+                          true (- nuy line-wid))))
+        links))
+
 (defn vcompact
   "This function is a monster and will probably be broken into smaller functions in the future. Its job is to pack the graph by pushing all nodes and lines upwards as much as possible. It also 'feathers out' all edges attaching to the same side of a single node, so that you can see separate attachment points for each."
   [{:keys [line-padding line-wid]} nodes]
@@ -804,82 +813,74 @@
                m
                (let [k (loop [xx (let [[a b] (split-at (/ side 2) (range side))]
                                    (take side (interleave (concat b (repeat 0)) (concat (reverse a) (repeat 0))))
-                                  (range side)
-)
+                                   (range side))
                               [nodes scan] m]
                          (if-let [[x & morex] xx]
                            (recur (next xx)
                                   (if-let [key (positions [x y])]
-                                    (let [{:keys [ypos xpos width height]} (nodes key)
-                                          nuy (scan-lowest-y scan xpos width)
-                                          {:keys [links] :as node} (nodes key)
-                                          nodes (assoc nodes
-                                                  key (assoc node
-                                                        :ypos nuy))
-                                          links (vec (map (fn [{[l1 {dir :dir :as l2} & more] :legs :as link}]
-                                                            (assoc link :legs (vec (concat [(assoc l1 :ypos nuy)
-                                                                                            (if (vertical dir)
-                                                                                              (assoc l2 :ypos nuy)
-                                                                                              l2)]
-                                                                                           more))))
-                                                          links))
-                                          minlegy (+ nuy line-padding line-wid)
-                                          nodes nodes
-                                          [nodes scan] (loop [links (rlinks key)
-                                                              [nodes scan] [nodes scan]]
-                                                         (if-let [[[other-key link-index] & more] (seq links)]
-                                                           (recur more
-                                                                  (let [legs (get-in nodes [other-key :links link-index :legs])
-                                                                        [{xpos1 :xpos :as l1} {xpos2 :xpos dir2 :dir :as l2} & more] (reverse legs)]
-                                                                    (if (horizontal dir2)
-                                                                      (let [[nux nuwid] (if (= dir2 :left)
-                                                                                          (let [nux (+ xpos width)]
-                                                                                            [nux (+ (- xpos2 nux) line-wid)])
-                                                                                          [xpos2 (+ (- xpos xpos2) line-wid)])
-                                                                            nulegy (max minlegy (scan-lowest-y scan nux nuwid))]
-                                                                        [(assoc-in nodes [other-key :links link-index :legs] (vec (reverse (concat [(assoc l1 :ypos nulegy :xpos (if (= dir2 :left) nux (- xpos line-wid))) (assoc l2 :ypos nulegy)] more)))) (scan-add scan nux (+ nulegy line-padding line-wid) nuwid)])
-                                                                      [nodes scan])))
-                                                           [nodes scan]))
-                                          [nodes scan] (loop [links links
-                                                                  acc []
-                                                                  scan scan]
-                                                             (if-let [[{[{xpos1 :xpos dir :dir :as leg1} {xpos2 :xpos :as leg2} & mlegs] :legs :as link} & more] (seq links)]
-                                                               (if (horizontal dir)
-                                                                 (let [[nux nuwid] (if (= dir :right)
-                                                                                     (let [nux (+ xpos width)]
-                                                                                       [nux (+ (- xpos2 nux) line-wid)])
-                                                                                     [xpos1 (+ (- xpos1 xpos) line-wid)])
-                                                                       nulegy (max minlegy (scan-lowest-y scan nux nuwid))]
-                                                                   (recur more (conj acc (assoc link :legs (vec (concat [(assoc leg1 :ypos nulegy :xpos nux) (assoc leg2 :ypos nulegy)] mlegs)))) (scan-add scan nux (+ nulegy line-padding line-wid) nuwid)))
-                                                                 (recur more (conj acc link) scan))
-                                                               [(assoc nodes key (assoc (nodes key) :links acc)) scan]))
-                                          nuheight (max height (+ (- (scan-lowest-y scan (+ xpos width) line-padding) nuy) line-padding) (+ (- (scan-lowest-y scan xpos 0) nuy) line-padding))
-                                          nodes (update-in nodes
-                                                           [key :links]
-                                                           (fn [links]
-                                                             (vec (map (fn [{[{:keys [dir ypos]} & {}] :legs :as link}]
-                                                                         (assoc-in link
-                                                                                   [:legs 0 :ypos]
-                                                                                   (cond (horizontal dir) ypos
-                                                                                         (= dir :down) (+ nuy nuheight)
-                                                                                         true (- nuy line-wid))))
-                                                                       links))))
-                                          nodes (loop [links (rlinks key)
-                                                       nodes nodes]
-                                                  (if-let [[[other-key link-index] & more] (seq links)]
-                                                    (recur more
-                                                           (update-in nodes
-                                                                      [other-key :links link-index :legs]
-                                                                      (fn [legs]
-                                                                        (let [[{ypos :ypos :as leg} {dir :dir}] (reverse legs)]
-                                                                          (vec (reverse (cons (assoc leg :ypos
-                                                                                                         (cond (horizontal dir) ypos
-                                                                                                               (= dir :up) (+ nuy nuheight)
-                                                                                                               true (- nuy line-wid)))
-                                                                                                  (next (reverse legs)))))))))
-                                                    nodes))
-                                          nodes (assoc nodes key (assoc (nodes key) :height nuheight))
-                                          scan (scan-add scan xpos (+ nuy line-padding nuheight) width)]
+                                    (let [{:keys [ypos xpos
+                                                  width height]} (nodes key)
+                                          nuy                    (scan-lowest-y scan xpos width)
+                                          {:keys [links]
+                                           :as node}             (nodes key)
+                                          nodes                  (assoc nodes
+                                                                        key (assoc node
+                                                                                   :ypos nuy))
+                                          links                  (vec (map (fn [{[l1 {dir :dir :as l2} & more] :legs :as link}]
+                                                                             (assoc link :legs (vec (concat [(assoc l1 :ypos nuy)
+                                                                                                             (if (vertical dir)
+                                                                                                               (assoc l2 :ypos nuy)
+                                                                                                               l2)]
+                                                                                                            more))))
+                                                                           links))
+                                          minlegy                (+ nuy line-padding line-wid)
+                                          nodes                  nodes
+                                          [nodes scan]           (loop [links (rlinks key)
+                                                                        [nodes scan] [nodes scan]]
+                                                                   (if-let [[[other-key link-index] & more] (seq links)]
+                                                                     (recur more
+                                                                            (let [legs (get-in nodes [other-key :links link-index :legs])
+                                                                                  [{xpos1 :xpos :as l1} {xpos2 :xpos dir2 :dir :as l2} & more] (reverse legs)]
+                                                                              (if (horizontal dir2)
+                                                                                (let [[nux nuwid] (if (= dir2 :left)
+                                                                                                    (let [nux (+ xpos width)]
+                                                                                                      [nux (+ (- xpos2 nux) line-wid)])
+                                                                                                    [xpos2 (+ (- xpos xpos2) line-wid)])
+                                                                                      nulegy (max minlegy (scan-lowest-y scan nux nuwid))]
+                                                                                  [(assoc-in nodes [other-key :links link-index :legs] (vec (reverse (concat [(assoc l1 :ypos nulegy :xpos (if (= dir2 :left) nux (- xpos line-wid))) (assoc l2 :ypos nulegy)] more)))) (scan-add scan nux (+ nulegy line-padding line-wid) nuwid)])
+                                                                                [nodes scan])))
+                                                                     [nodes scan]))
+                                          [nodes scan]           (loop [links links
+                                                                        acc []
+                                                                        scan scan]
+                                                                   (if-let [[{[{xpos1 :xpos dir :dir :as leg1} {xpos2 :xpos :as leg2} & mlegs] :legs :as link} & more] (seq links)]
+                                                                     (if (horizontal dir)
+                                                                       (let [[nux nuwid] (if (= dir :right)
+                                                                                           (let [nux (+ xpos width)]
+                                                                                             [nux (+ (- xpos2 nux) line-wid)])
+                                                                                           [xpos1 (+ (- xpos1 xpos) line-wid)])
+                                                                             nulegy (max minlegy (scan-lowest-y scan nux nuwid))]
+                                                                         (recur more (conj acc (assoc link :legs (vec (concat [(assoc leg1 :ypos nulegy :xpos nux) (assoc leg2 :ypos nulegy)] mlegs)))) (scan-add scan nux (+ nulegy line-padding line-wid) nuwid)))
+                                                                       (recur more (conj acc link) scan))
+                                                                     [(assoc nodes key (assoc (nodes key) :links acc)) scan]))
+                                          nuheight               (max height (+ (- (scan-lowest-y scan (+ xpos width) line-padding) nuy) line-padding) (+ (- (scan-lowest-y scan xpos 0) nuy) line-padding))
+                                          nodes                  (update-in nodes [key :links] #(update-links % nuy nuheight line-wid))
+                                          nodes                  (loop [links (rlinks key)
+                                                                        nodes nodes]
+                                                                   (if-let [[[other-key link-index] & more] (seq links)]
+                                                                     (recur more
+                                                                            (update-in nodes
+                                                                                       [other-key :links link-index :legs]
+                                                                                       (fn [legs]
+                                                                                         (let [[{ypos :ypos :as leg} {dir :dir}] (reverse legs)]
+                                                                                           (vec (reverse (cons (assoc leg :ypos
+                                                                                                                      (cond (horizontal dir) ypos
+                                                                                                                            (= dir :up) (+ nuy nuheight)
+                                                                                                                            true (- nuy line-wid)))
+                                                                                                               (next (reverse legs)))))))))
+                                                                     nodes))
+                                          nodes                  (assoc nodes key (assoc (nodes key) :height nuheight))
+                                          scan                   (scan-add scan xpos (+ nuy line-padding nuheight) width)]
                                       [nodes scan])
 
                                     [nodes scan]))
