@@ -2,7 +2,7 @@
   (:require [clojure.math.numeric-tower :refer :all])
   (:import [java.io File]
            [javax.imageio ImageIO]
-           [java.awt Color]
+           [java.awt Color AlphaComposite]
            [java.awt.image BufferedImage]))
 
 ;;Maintained By Conrad Barski- Licensed under GPLV3
@@ -1156,6 +1156,7 @@
     (ImageIO/write (cast java.awt.image.BufferedImage img) "png" file)))
 
 (def arrow-size 5)
+(def clear-composite (AlphaComposite/getInstance AlphaComposite/CLEAR 0.0))
 
 (defn draw-shapes-image
   "Draws a list of shapes to an awt image."
@@ -1165,11 +1166,12 @@
     (doseq [{:keys [type x y width height text]} shapes]
       (when (= type :rect)
         (when (= height line-wid)
-          (.setColor graphics (Color. 255 255 255))
+          (.setComposite graphics clear-composite)
           (.fillRect graphics (+ x line-wid) (- y line-wid) (- width (* 2 line-wid)) (* line-wid 3)))
         (when (= width line-wid)
-          (.setColor graphics (Color. 255 255 255))
+          (.setComposite graphics clear-composite)
           (.fillRect graphics (- x line-wid) (+ y line-wid) (* line-wid 3) (- height (* 2 line-wid))))
+        (.setComposite graphics AlphaComposite/SrcOver)
         (.setColor graphics (Color. 0 0 0))
         (.fillRect graphics x y width height)
         (.setColor graphics (Color. 240 240 240))
