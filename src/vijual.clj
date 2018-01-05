@@ -107,7 +107,6 @@
   "like 'print' but without inserted spaces and fully flushed"
   [& more]
   (print (apply str more))
-  (flush)
   (first more))
 
 (defn numbered [lst]
