@@ -67,7 +67,7 @@
                                         :right \>
                                         :left \<
                                         :up \^
-                                        :down \V
+                                        :down \v
                                         \*)
                                :cap (condp = dir
                                       :right \-
